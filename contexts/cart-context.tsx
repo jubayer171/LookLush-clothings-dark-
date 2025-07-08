@@ -8,6 +8,7 @@ export interface CartItem {
   quantity: number
   selectedColor: string
   selectedSize: string
+  selected?: boolean
 }
 
 interface CartContextType {
@@ -20,6 +21,11 @@ interface CartContextType {
   getTotalItems: () => number
   isOpen: boolean
   setIsOpen: (open: boolean) => void
+  toggleItemSelection: (productId: string, color: string, size: string) => void
+  selectAllItems: (selected: boolean) => void
+  getSelectedItems: () => CartItem[]
+  getSelectedTotalPrice: () => number
+  getSelectedTotalItems: () => number
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -54,6 +60,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       }
 
       return [...prevItems, { product, quantity, selectedColor: color, selectedSize: size }]
+      return [...prevItems, { product, quantity, selectedColor: color, selectedSize: size, selected: true }]
     })
   }
 
@@ -92,6 +99,34 @@ export function CartProvider({ children }: { children: ReactNode }) {
     return items.reduce((total, item) => total + item.quantity, 0)
   }
 
+  const toggleItemSelection = (productId: string, color: string, size: string) => {
+    setItems((prevItems) =>
+      prevItems.map((item) =>
+        item.product.id === productId && item.selectedColor === color && item.selectedSize === size
+          ? { ...item, selected: !item.selected }
+          : item,
+      ),
+    )
+  }
+
+  const selectAllItems = (selected: boolean) => {
+    setItems((prevItems) => prevItems.map((item) => ({ ...item, selected })))
+  }
+
+  const getSelectedItems = () => {
+    return items.filter((item) => item.selected)
+  }
+
+  const getSelectedTotalPrice = () => {
+    return items
+      .filter((item) => item.selected)
+      .reduce((total, item) => total + item.product.price * item.quantity, 0)
+  }
+
+  const getSelectedTotalItems = () => {
+    return items.filter((item) => item.selected).reduce((total, item) => total + item.quantity, 0)
+  }
+
   return (
     <CartContext.Provider
       value={{
@@ -104,6 +139,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
         getTotalItems,
         isOpen,
         setIsOpen,
+        toggleItemSelection,
+        selectAllItems,
+        getSelectedItems,
+        getSelectedTotalPrice,
+        getSelectedTotalItems,
       }}
     >
       {children}

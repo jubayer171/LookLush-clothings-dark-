@@ -13,13 +13,14 @@ import Link from "next/link"
 
 export function AccountDropdown() {
   const { user, logout } = useAuth()
-  const { items, getTotalItems, getTotalPrice } = useCart()
+  const { items, getTotalItems, getTotalPrice, getSelectedItems, getSelectedTotalPrice } = useCart()
   const { orders } = useOrders()
   const [isOpen, setIsOpen] = useState(false)
 
   if (!user) return null
 
   const recentOrders = orders.slice(-3).reverse()
+  const selectedItems = getSelectedItems()
 
   return (
     <div className="relative">
@@ -94,7 +95,14 @@ export function AccountDropdown() {
                       <Package className="w-4 h-4 mr-2" />
                       Recent Orders
                     </h3>
-                    {recentOrders.length > 0 ? (
+                    <div className="flex items-center space-x-2">
+                      <Badge variant="secondary">{getTotalItems()} items</Badge>
+                      {selectedItems.length > 0 && (
+                        <Badge className="bg-purple-500/20 text-purple-400">
+                          {selectedItems.length} selected
+                        </Badge>
+                      )}
+                    </div>
                       <div className="space-y-2">
                         {recentOrders.map((order) => (
                           <div key={order.id} className="flex justify-between items-center text-sm">
@@ -114,16 +122,27 @@ export function AccountDropdown() {
                                       : "bg-yellow-500/20 text-yellow-400"
                                 }
                               >
-                                {order.status}
+                          <div key={index} className={`flex justify-between text-sm ${item.selected ? 'text-purple-300' : 'text-gray-300'}`}>
                               </Badge>
+                            <div className="flex items-center space-x-1">
+                              {item.selected && <span className="text-purple-400 text-xs">✓</span>}
+                              <span className="text-white">${(item.product.price * item.quantity).toFixed(2)}</span>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-gray-400 text-sm">No orders yet</p>
-                    )}
-                  </div>
+                      <div className="space-y-1 pt-2 border-t border-gray-800">
+                        {selectedItems.length > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-purple-400">Selected:</span>
+                            <span className="text-purple-400">${getSelectedTotalPrice().toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-medium">
+                          <span className="text-white">Total:</span>
+                          <span className="gradient-text">${getTotalPrice().toFixed(2)}</span>
+                        </div>
 
                   {/* Actions */}
                   <div className="space-y-2 pt-3 border-t border-gray-800">

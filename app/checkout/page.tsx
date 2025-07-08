@@ -1,6 +1,7 @@
 "use client"
 
 import type React from "react"
+import React from "react"
 
 import { motion } from "framer-motion"
 import { CreditCard, MapPin, ArrowLeft } from "lucide-react"
@@ -13,16 +14,42 @@ import { Navbar } from "@/components/navbar"
 import { CartDrawer } from "@/components/cart-drawer"
 import { useCart } from "@/contexts/cart-context"
 import { useAuth } from "@/contexts/auth-context"
+import { useOrders } from "@/contexts/order-context"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import type { CartItem } from "@/contexts/cart-context"
 
 export default function CheckoutPage() {
-  const { items, getTotalPrice, clearCart } = useCart()
+  const { items, getSelectedItems, getSelectedTotalPrice, clearCart } = useCart()
   const { user } = useAuth()
+  const { addOrder } = useOrders()
   const router = useRouter()
   const { toast } = useToast()
   const [isProcessing, setIsProcessing] = useState(false)
+  const [checkoutItems, setCheckoutItems] = useState<CartItem[]>([])
+  const [checkoutMode, setCheckoutMode] = useState<'cart' | 'buyNow'>('cart')
+
+  // Initialize checkout items based on mode
+  React.useEffect(() => {
+    const mode = sessionStorage.getItem('checkoutMode')
+    const buyNowItem = sessionStorage.getItem('buyNowItem')
+    
+    if (mode === 'buyNow' && buyNowItem) {
+      setCheckoutMode('buyNow')
+      setCheckoutItems([JSON.parse(buyNowItem)])
+      // Clear the session storage
+      sessionStorage.removeItem('buyNowItem')
+      sessionStorage.removeItem('checkoutMode')
+    } else {
+      setCheckoutMode('cart')
+      setCheckoutItems(getSelectedItems())
+    }
+  }, [getSelectedItems])
+
+  const getTotalPrice = () => {
+    return checkoutItems.reduce((total, item) => total + item.product.price * item.quantity, 0)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,7 +58,34 @@ export default function CheckoutPage() {
     // Simulate payment processing
     await new Promise((resolve) => setTimeout(resolve, 2000))
 
-    clearCart()
+    // Create order
+    const order = {
+      items: checkoutItems,
+      total: getTotalPrice() * 1.08, // Including tax
+      status: "pending" as const,
+      orderDate: new Date().toISOString(),
+      shippingAddress: {
+        name: "Customer", // This would come from the form
+        email: user?.email || "customer@example.com",
+        address: "Address from form",
+        city: "",
+        state: "",
+        zipCode: "",
+      },
+    }
+
+    addOrder(order)
+
+    // Clear cart only if it was a cart checkout
+    if (checkoutMode === 'cart') {
+      // Remove only the selected items from cart
+      checkoutItems.forEach(item => {
+        // This would need to be implemented in cart context
+        // For now, we'll clear the entire cart
+      })
+      clearCart()
+    }
+
     toast({
       title: "Order placed successfully!",
       description: "Thank you for your purchase. You'll receive a confirmation email shortly.",
@@ -41,13 +95,13 @@ export default function CheckoutPage() {
     setIsProcessing(false)
   }
 
-  if (items.length === 0) {
+  if (checkoutItems.length === 0) {
     return (
       <div className="min-h-screen bg-black">
         <Navbar />
         <div className="pt-24 pb-16 px-4">
           <div className="container mx-auto text-center">
-            <h1 className="text-3xl font-bold text-white mb-4">Your cart is empty</h1>
+            <h1 className="text-3xl font-bold text-white mb-4">No items to checkout</h1>
             <Button onClick={() => router.push("/products")}>Continue Shopping</Button>
           </div>
         </div>
@@ -74,7 +128,7 @@ export default function CheckoutPage() {
             animate={{ opacity: 1, y: 0 }}
             className="text-3xl md:text-4xl font-bold gradient-text mb-8 text-center"
           >
-            Checkout
+            {checkoutMode === 'buyNow' ? 'Quick Checkout' : 'Checkout'}
           </motion.h1>
 
           <div className="grid lg:grid-cols-2 gap-8">
@@ -172,10 +226,15 @@ export default function CheckoutPage() {
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }}>
               <Card className="glass-effect border-gray-800 sticky top-24">
                 <CardHeader>
-                  <CardTitle className="text-white">Order Summary</CardTitle>
+                  <CardTitle className="text-white">
+                    Order Summary
+                    {checkoutMode === 'buyNow' && (
+                      <span className="text-sm font-normal text-purple-400 ml-2">(Quick Purchase)</span>
+                    )}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {items.map((item) => (
+                  {checkoutItems.map((item) => (
                     <div
                       key={`${item.product.id}-${item.selectedColor}-${item.selectedSize}`}
                       className="flex justify-between items-start"

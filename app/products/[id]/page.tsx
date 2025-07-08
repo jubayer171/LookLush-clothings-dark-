@@ -12,7 +12,6 @@ import { CartDrawer } from "@/components/cart-drawer"
 import { ImageGallery } from "@/components/image-gallery"
 import { useProducts } from "@/contexts/product-context"
 import { useCart } from "@/contexts/cart-context"
-import { useOrders } from "@/contexts/order-context"
 import { useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
@@ -22,7 +21,6 @@ export default function ProductDetailPage() {
   const router = useRouter()
   const { getProduct, products } = useProducts()
   const { addToCart } = useCart()
-  const { addOrder } = useOrders()
   const { toast } = useToast()
 
   const product = getProduct(params.id as string)
@@ -95,36 +93,24 @@ export default function ProductDetailPage() {
       return
     }
 
-    // Create immediate order
-    const orderItem = {
+    // Store the buy now item in sessionStorage for checkout
+    const buyNowItem = {
       product,
       quantity,
       selectedColor,
       selectedSize,
+      selected: true,
     }
-
-    const order = {
-      items: [orderItem],
-      total: product.price * quantity * 1.08, // Including tax
-      status: "pending" as const,
-      orderDate: new Date().toISOString(),
-      shippingAddress: {
-        name: "Quick Purchase",
-        email: "customer@example.com",
-        address: "To be updated",
-        city: "",
-        state: "",
-        zipCode: "",
-      },
-    }
-
-    addOrder(order)
+    
+    sessionStorage.setItem('buyNowItem', JSON.stringify(buyNowItem))
+    sessionStorage.setItem('checkoutMode', 'buyNow')
+    
     toast({
-      title: "Order placed!",
-      description: "Your order has been placed successfully. Redirecting to checkout...",
+      title: "Proceeding to checkout",
+      description: "Redirecting to checkout for this item...",
     })
 
-    // Redirect to checkout or order confirmation
+    // Redirect to checkout
     setTimeout(() => {
       router.push("/checkout")
     }, 1500)
